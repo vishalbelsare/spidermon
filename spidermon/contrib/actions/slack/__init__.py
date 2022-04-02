@@ -104,7 +104,7 @@ class SlackMessageManager:
             )
 
     def _send_channel_message(
-        self, channel, text, parse="full", link_names=1, attachments=None
+        self, channel, text, parse="full", link_names=1, attachments=None, **kwargs
     ):
         self._client.chat_postMessage(
             channel=channel,
@@ -114,6 +114,7 @@ class SlackMessageManager:
             attachments=self._parse_attachments(attachments),
             username=self.sender_name,
             icon_url=self._get_icon_url(),
+            **kwargs,
         )
 
     def _get_icon_url(self):
