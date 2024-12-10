@@ -3,6 +3,7 @@ from slugify import slugify
 from scrapy.utils.test import get_crawler
 from scrapy import Item
 from functools import partial
+from itemadapter import ItemAdapter
 
 from spidermon.contrib.scrapy.pipelines import ItemValidationPipeline
 from tests.fixtures.items import TreeItem, TestItem
@@ -15,10 +16,6 @@ STATS_MISSINGS = "spidermon/validation/fields/errors/missing_required_field"
 STATS_TYPES = "spidermon/validation/validators/{}/{}"
 
 SETTING_SCHEMAS = "SPIDERMON_VALIDATION_SCHEMAS"
-SETTING_MODELS = "SPIDERMON_VALIDATION_MODELS"
-
-TREE_VALIDATOR_PATH = "tests.fixtures.validators.TreeValidator"
-TEST_VALIDATOR_PATH = "tests.fixtures.validators.TestValidator"
 
 
 class PipelineTestCaseMetaclass(type):
@@ -91,7 +88,7 @@ class PipelineJSONSchemaValidator(PipelineTest):
             settings={SETTING_SCHEMAS: [test_schema]},
             cases=[
                 f"'{STATS_ITEM_ERRORS}' not in {{stats}}",
-                f"{{stats}}['{STATS_AMOUNTS}'] is 1",
+                f"{{stats}}['{STATS_AMOUNTS}'] == 1",
                 assert_type_in_stats(Item),
             ],
         ),
@@ -186,8 +183,8 @@ class PipelineJSONSchemaValidator(PipelineTest):
             item=TestItem(),
             settings={SETTING_SCHEMAS: {TestItem: [test_schema, tree_schema]}},
             cases=[
-                f"{{stats}}['{STATS_AMOUNTS}'] is 2",
-                f"{{stats}}['{STATS_ITEM_ERRORS}'] is 2",
+                f"{{stats}}['{STATS_AMOUNTS}'] == 2",
+                f"{{stats}}['{STATS_ITEM_ERRORS}'] == 2",
             ],
         ),
         DataTest(
@@ -201,7 +198,7 @@ class PipelineJSONSchemaValidator(PipelineTest):
             item=TreeItem(),
             settings={SETTING_SCHEMAS: {TestItem: test_schema, TreeItem: tree_schema}},
             cases=[
-                f"{{stats}}['{STATS_MISSINGS}'] is 1",
+                f"{{stats}}['{STATS_MISSINGS}'] == 1",
                 assert_type_in_stats(TestItem),
                 assert_type_in_stats(TreeItem),
             ],
@@ -228,123 +225,30 @@ def test_validator_from_url(mocker):
     assert stats.get("spidermon/validation/validators/testitem/jsonschema", False)
 
 
-class PipelineModelValidator(PipelineTest):
-    assert_type_in_stats = partial(assert_type_in_stats, "schematics")
+class TestAddErrors:
+    def _run_pipeline(self, test_item):
+        settings = {
+            "SPIDERMON_ENABLED": True,
+            "SPIDERMON_VALIDATION_ERRORS_FIELD": "error_test",
+            SETTING_SCHEMAS: [test_schema],
+        }
+        test_errors = {"some_error": ["some_message"]}
+        crawler = get_crawler(settings_dict=settings)
+        pipe = ItemValidationPipeline.from_crawler(crawler)
+        pipe._add_errors_to_item(ItemAdapter(test_item), test_errors)
+        return test_item
 
-    data_tests = [
-        DataTest(
-            name="processing usual item without errors",
-            item=TestItem({"url": "http://example.com"}),
-            settings={SETTING_MODELS: [TEST_VALIDATOR_PATH]},
-            cases=[
-                f"'{STATS_ITEM_ERRORS}' not in {{stats}}",
-                f"{{stats}}['{STATS_AMOUNTS}'] is 1",
-                assert_type_in_stats(Item),
-            ],
-        ),
-        DataTest(
-            name="processing item with url problem",
-            item=TestItem({"url": "example.com"}),
-            settings={SETTING_MODELS: [TEST_VALIDATOR_PATH]},
-            cases=f"'{STATS_ITEM_ERRORS}' in {{stats}}",
-        ),
-        DataTest(
-            name="processing nested items without errors",
-            item=TreeItem({"child": TreeItem()}),
-            settings={SETTING_MODELS: [TREE_VALIDATOR_PATH]},
-            cases=[
-                f"'{STATS_ITEM_ERRORS}' not in {{stats}}",
-                f"{{stats}}['{STATS_AMOUNTS}'] is 1",
-                assert_type_in_stats(Item),
-            ],
-        ),
-        DataTest(
-            name="missing required fields",
-            item=TestItem(),
-            settings={SETTING_MODELS: [TEST_VALIDATOR_PATH]},
-            cases=f"'{STATS_MISSINGS}' in {{stats}}",
-        ),
-        DataTest(
-            name="validator is {} type, validators in list repr".format(
-                TestItem.__name__
-            ),
-            item=TestItem(),
-            settings={SETTING_MODELS: {TestItem: [TEST_VALIDATOR_PATH]}},
-            cases=[
-                f"'{STATS_ITEM_ERRORS}' in {{stats}}",
-                assert_type_in_stats(TestItem),
-            ],
-        ),
-        DataTest(
-            name="support several schema validators per item",
-            item=TestItem(),
-            settings={
-                SETTING_MODELS: {TestItem: [TEST_VALIDATOR_PATH, TREE_VALIDATOR_PATH]}
-            },
-            cases=[
-                f"{{stats}}['{STATS_AMOUNTS}'] is 2",
-                f"{{stats}}['{STATS_ITEM_ERRORS}'] is 2",
-            ],
-        ),
-        DataTest(
-            name="item of one type processed only by proper validator",
-            item=TestItem({"url": "http://example.com"}),
-            settings={
-                SETTING_MODELS: {
-                    TestItem: TEST_VALIDATOR_PATH,
-                    TreeItem: TREE_VALIDATOR_PATH,
-                }
-            },
-            cases=f"'{STATS_ITEM_ERRORS}' not in {{stats}}",
-        ),
-        DataTest(
-            name="each item processed by proper validator",
-            item=TreeItem(),
-            settings={
-                SETTING_MODELS: {
-                    TestItem: TEST_VALIDATOR_PATH,
-                    TreeItem: TREE_VALIDATOR_PATH,
-                }
-            },
-            cases=[
-                f"{{stats}}['{STATS_MISSINGS}'] is 1",
-                assert_type_in_stats(TestItem),
-                assert_type_in_stats(TreeItem),
-            ],
-        ),
-    ]
+    def test_add_errors_to_item(self):
+        test_item = TestItem({"url": "http://example.com"})
+        self._run_pipeline(test_item)
+        assert test_item.get("error_test")["some_error"] == ["some_message"]
 
-
-class PipelineValidators(PipelineTest):
-
-    data_tests = [
-        DataTest(
-            name=f"there are both validators per {Item.__name__} type",
-            item=TestItem(),
-            settings={
-                SETTING_SCHEMAS: [test_schema],
-                SETTING_MODELS: [TEST_VALIDATOR_PATH],
-            },
-            cases=[
-                f"{{stats}}['{STATS_AMOUNTS}'] is 2",
-                f"{{stats}}['{STATS_ITEM_ERRORS}'] is 2",
-                assert_type_in_stats("jsonschema", Item),
-                assert_type_in_stats("schematics", Item),
-            ],
-        ),
-        DataTest(
-            name="proper validators handle only related items",
-            item=TestItem({"url": "http://example.com"}),
-            settings={
-                SETTING_SCHEMAS: {TestItem: test_schema, TreeItem: tree_schema},
-                SETTING_MODELS: {Item: TEST_VALIDATOR_PATH},
-            },
-            cases=[
-                f"{{stats}}['{STATS_AMOUNTS}'] is 3",
-                f"'{STATS_ITEM_ERRORS}' not in {{stats}}",
-                assert_type_in_stats("jsonschema", TestItem),
-                assert_type_in_stats("jsonschema", TreeItem),
-                assert_type_in_stats("schematics", Item),
-            ],
-        ),
-    ]
+    def test_add_errors_to_item_prefilled(self):
+        test_item = TestItem(
+            {"url": "http://example.com", "error_test": {"some_error": ["prefilled"]}}
+        )
+        self._run_pipeline(test_item)
+        assert test_item.get("error_test")["some_error"] == [
+            "prefilled",
+            "some_message",
+        ]

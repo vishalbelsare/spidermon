@@ -182,3 +182,228 @@ If this setting is not provided or set to ``False``, spider statistics will be:
    'spidermon_item_scraped_count/dict/field_2': 2,
    'spidermon_field_coverage/dict/field_1': 1,  # Did not ignore None value
    'spidermon_item_scraped_count/dict/field_2': 1,
+
+SPIDERMON_LIST_FIELDS_COVERAGE_LEVELS
+-------------------------------------
+Default: ``0``
+
+If larger than 0, field coverage will be computed for items inside fields that are lists.
+The number represents how deep in the objects tree the coverage is computed.
+Be aware that enabling this might have a significant impact in performance.
+
+Considering your spider returns the following items:
+
+.. code-block:: python
+
+   [
+      {
+          "field_1": None,
+          "field_2": [{"nested_field1": "value", "nested_field2": "value"}],
+      },
+      {
+          "field_1": "value",
+          "field_2": [
+              {"nested_field2": "value", "nested_field3": {"deeper_field1": "value"}}
+          ],
+      },
+      {
+          "field_1": "value",
+          "field_2": [
+              {
+                  "nested_field2": "value",
+                  "nested_field4": [
+                      {"deeper_field41": "value"},
+                      {"deeper_field41": "value"},
+                  ],
+              }
+          ],
+      },
+   ]
+
+If this setting is not provided or set to ``0``, spider statistics will be:
+
+.. code-block:: python
+
+  'item_scraped_count': 3,
+  'spidermon_item_scraped_count': 3,
+  'spidermon_item_scraped_count/dict': 3,
+  'spidermon_item_scraped_count/dict/field_1': 3,
+  'spidermon_item_scraped_count/dict/field_2': 3
+
+If set to ``1``, spider statistics will be:
+
+.. code-block:: python
+
+  'item_scraped_count': 3,
+  'spidermon_item_scraped_count': 3,
+  'spidermon_item_scraped_count/dict': 3,
+  'spidermon_item_scraped_count/dict/field_1': 3,
+  'spidermon_item_scraped_count/dict/field_2': 3,
+  'spidermon_item_scraped_count/dict/field_2/_items': 3,
+  'spidermon_item_scraped_count/dict/field_2/_items/nested_field1': 1,
+  'spidermon_item_scraped_count/dict/field_2/_items/nested_field2': 3,
+  'spidermon_item_scraped_count/dict/field_2/_items/nested_field3': 1,
+  'spidermon_item_scraped_count/dict/field_2/_items/nested_field3/deeper_field1': 1,
+  'spidermon_item_scraped_count/dict/field_2/_items/nested_field4': 1
+
+If set to ``2``, spider statistics will be:
+
+.. code-block:: python
+
+  'item_scraped_count': 3,
+  'spidermon_item_scraped_count': 3,
+  'spidermon_item_scraped_count/dict': 3,
+  'spidermon_item_scraped_count/dict/field_1': 3,
+  'spidermon_item_scraped_count/dict/field_2': 3,
+  'spidermon_item_scraped_count/dict/field_2/_items': 3,
+  'spidermon_item_scraped_count/dict/field_2/_items/nested_field1': 1,
+  'spidermon_item_scraped_count/dict/field_2/_items/nested_field2': 3,
+  'spidermon_item_scraped_count/dict/field_2/_items/nested_field3': 1,
+  'spidermon_item_scraped_count/dict/field_2/_items/nested_field3/deeper_field1': 1,
+  'spidermon_item_scraped_count/dict/field_2/_items/nested_field4': 1,
+  'spidermon_item_scraped_count/dict/field_2/_items/nested_field4/_items': 2,
+  'spidermon_item_scraped_count/dict/field_2/_items/nested_field4/_items/deeper_field41': 2
+
+SPIDERMON_DICT_FIELDS_COVERAGE_LEVELS
+-------------------------------------
+Default: ``-1``
+
+If -1, all levels of nested dictionaries will have their cover computed.
+
+If larger than -1, field coverage will be computed for that many levels of nested dictionaries.
+
+Considering the spider returns the following items:
+
+  .. code-block:: python
+
+    [
+      {
+          "field1": {"field1.1": "value1.1"},
+          "field2": "value2",
+          "field3": {"field3.1": "value3.1"},
+          "field4": {
+              "field4.1": {
+                  "field4.1.1": "value",
+                  "field4.1.2": "value",
+                  "field4.1.3": {"field4.1.3.1": "value"},
+              }
+          },
+      },
+      {
+          "field1": {
+              "field1.1": "value1.1",
+              "field1.2": "value1.2",
+          },
+          "field2": "value2",
+      },
+    ]
+
+  If set to ``-1``, the statistics will include:
+
+  .. code-block:: python
+
+      'spidermon_item_scraped_count/dict': 2
+      'spidermon_item_scraped_count/dict/field1': 2
+      'spidermon_item_scraped_count/dict/field1/field1.1': 2
+      'spidermon_item_scraped_count/dict/field1/field1.2': 1
+      'spidermon_item_scraped_count/dict/field2': 2
+      'spidermon_item_scraped_count/dict/field3': 1
+      'spidermon_item_scraped_count/dict/field4': 1
+      'spidermon_item_scraped_count/dict/field4/field4.1': 1
+      'spidermon_item_scraped_count/dict/field4/field4.1/field4.1.1': 1
+      'spidermon_item_scraped_count/dict/field4/field4.1/field4.1.2': 1
+      'spidermon_item_scraped_count/dict/field4/field4.1/field4.1.3': 1
+      'spidermon_item_scraped_count/dict/field4/field4.1/field4.1.3/field4.1.3.1': 1
+
+  If set to ``0``, the statistics will include:
+
+  .. code-block:: python
+
+      'spidermon_item_scraped_count/dict': 2
+      'spidermon_item_scraped_count/dict/field1': 2
+      'spidermon_item_scraped_count/dict/field2': 2
+      'spidermon_item_scraped_count/dict/field3': 1
+      'spidermon_item_scraped_count/dict/field4': 1
+
+  If set to ``1``, the statistics will include:
+
+  .. code-block:: python
+
+      'spidermon_item_scraped_count/dict': 2
+      'spidermon_item_scraped_count/dict/field1': 2
+      'spidermon_item_scraped_count/dict/field1/field1.1': 2
+      'spidermon_item_scraped_count/dict/field1/field1.2': 1
+      'spidermon_item_scraped_count/dict/field2': 2
+      'spidermon_item_scraped_count/dict/field3': 1
+      'spidermon_item_scraped_count/dict/field4': 1
+      'spidermon_item_scraped_count/dict/field4/field4.1': 1
+      'spidermon_item_scraped_count/dict/field4/field4.1/field4.1.1': 1
+
+  If set to ``2``, the statistics will include:
+
+  .. code-block:: python
+
+      'spidermon_item_scraped_count/dict': 2
+      'spidermon_item_scraped_count/dict/field1': 2
+      'spidermon_item_scraped_count/dict/field1/field1.1': 2
+      'spidermon_item_scraped_count/dict/field1/field1.2': 1
+      'spidermon_item_scraped_count/dict/field2': 2
+      'spidermon_item_scraped_count/dict/field3': 1
+      'spidermon_item_scraped_count/dict/field4': 1
+      'spidermon_item_scraped_count/dict/field4/field4.1': 1
+      'spidermon_item_scraped_count/dict/field4/field4.1/field4.1.1': 1
+      'spidermon_item_scraped_count/dict/field4/field4.1/field4.1.2': 1
+      'spidermon_item_scraped_count/dict/field4/field4.1/field4.1.3': 1
+
+SPIDERMON_MONITOR_SKIPPING_RULES
+--------------------------------
+Default: ``None``
+
+A dictionary where keys represent the names of the monitors to be skipped, and the corresponding values are lists containing either method names or lists defining skip conditions.
+
+When defining skip rules based on values, the list must follow the pattern: 
+
+``["stat_name", "comparison_operator", "threshold_value"]``. 
+
+Here, ``stat_name`` refers to the name of the Scrapy Stat being evaluated, ``comparison_operator`` indicates the type of comparison to perform (e.g., "==", "<", ">="), and ``threshold_value`` sets the threshold for the comparison.
+
+Additionally, custom skip rules can be defined using Python functions. These functions should accept a single argument (typically named ``monitor``) representing the monitor being evaluated and return a boolean value indicating whether the monitor should be skipped (``True``) or not (``False``).
+
+Below are examples illustrating how skip rules can be configured in the settings.
+
+Example #1: Skip monitor based on stat values
+
+   .. code-block:: python
+
+       class QuotesSpider(scrapy.Spider):
+           name = "quotes"
+           custom_settings = {
+               "SPIDERMON_FIELD_COVERAGE_RULES": {
+                   "dict/quote": 1,
+                   "dict/author": 1,
+               },
+               "SPIDERMON_MONITOR_SKIPPING_RULES": {
+                   "Field Coverage Monitor": [["item_scraped_count", "==", 0]],
+               }
+           }
+
+Example #2: Skip monitor based on a custom function
+
+   .. code-block:: python
+
+       def skip_function(monitor):
+           return datetime.datetime.today().weekday() == 4  # Don't test on Fridays
+
+       class QuotesSpider(scrapy.Spider):
+           name = "quotes"
+
+           custom_settings = {
+               "SPIDERMON_FIELD_COVERAGE_RULES": {
+                   "dict/quote": 1,
+                   "dict/author": 1,
+               },
+               "SPIDERMON_MONITOR_SKIPPING_RULES": {
+                   "Field Coverage Monitor": [skip_function],
+               }
+           }
+

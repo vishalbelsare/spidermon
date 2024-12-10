@@ -18,11 +18,15 @@ class SlackMessageManager:
     def __init__(self, sender_token=None, sender_name=None, fake=False):
         sender_token = sender_token or self.sender_token
         if not sender_token:
-            raise NotConfigured("You must provide a slack token.")
+            raise NotConfigured(
+                "You must provide a value for SPIDERMON_SLACK_SENDER_TOKEN setting."
+            )
 
         self.sender_name = sender_name or self.sender_name
         if not self.sender_name:
-            raise NotConfigured("You must provide a slack sender name.")
+            raise NotConfigured(
+                "You must provide a value for SPIDERMON_SLACK_SENDER_NAME setting."
+            )
 
         self.fake = fake
         self._client = WebClient(sender_token)
@@ -35,7 +39,14 @@ class SlackMessageManager:
         return self._users
 
     def send_message(
-        self, to, text, parse=None, link_names=1, attachments=None, use_mention=False
+        self,
+        to,
+        text,
+        parse=None,
+        link_names=1,
+        attachments=None,
+        use_mention=False,
+        **kwargs,
     ):
         if self.fake:
             logger.info(text)
@@ -52,6 +63,7 @@ class SlackMessageManager:
                     link_names=link_names,
                     attachments=attachments,
                     use_mention=use_mention,
+                    **kwargs,
                 )
                 for recipient in to
             ]
@@ -62,6 +74,7 @@ class SlackMessageManager:
                 parse=parse,
                 link_names=link_names,
                 attachments=attachments,
+                **kwargs,
             )
         else:
             if use_mention:
@@ -75,6 +88,7 @@ class SlackMessageManager:
                 parse=parse,
                 link_names=link_names,
                 attachments=attachments,
+                **kwargs,
             )
 
     def _get_user_id(self, username):
@@ -91,7 +105,7 @@ class SlackMessageManager:
         )
 
     def _send_user_message(
-        self, username, text, parse="full", link_names=1, attachments=None
+        self, username, text, parse="full", link_names=1, attachments=None, **kwargs
     ):
         user_id = self._get_user_id(username)
         if user_id:
@@ -101,10 +115,11 @@ class SlackMessageManager:
                 parse=parse,
                 link_names=link_names,
                 attachments=attachments,
+                **kwargs,
             )
 
     def _send_channel_message(
-        self, channel, text, parse="full", link_names=1, attachments=None
+        self, channel, text, parse="full", link_names=1, attachments=None, **kwargs
     ):
         self._client.chat_postMessage(
             channel=channel,
@@ -114,6 +129,7 @@ class SlackMessageManager:
             attachments=self._parse_attachments(attachments),
             username=self.sender_name,
             icon_url=self._get_icon_url(),
+            **kwargs,
         )
 
     def _get_icon_url(self):
@@ -180,6 +196,7 @@ class SendSlackMessage(ActionWithTemplates):
         attachments_template=None,
         include_attachments=None,
         fake=None,
+        **kwargs,
     ):
         super().__init__()
 
@@ -203,9 +220,11 @@ class SendSlackMessage(ActionWithTemplates):
         self.attachments = attachments or self.attachments
         self.attachments_template = attachments_template or self.attachments_template
 
+        self.kwargs = kwargs or {}
+
         if not self.fake and not self.recipients:
             raise NotConfigured(
-                "You must provide at least one recipient for the message."
+                "You must provide a value for SPIDERMON_SLACK_RECIPIENTS setting."
             )
 
     @classmethod
@@ -234,6 +253,7 @@ class SendSlackMessage(ActionWithTemplates):
             to=self.recipients,
             text=self.get_message(),
             attachments=self.get_attachments(),
+            **self.kwargs,
         )
 
     def get_message(self):

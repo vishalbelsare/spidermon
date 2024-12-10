@@ -2,6 +2,7 @@ from unittest import TestCase
 
 from spidermon.contrib.validation import JSONSchemaValidator
 from spidermon.contrib.validation import messages
+from spidermon.contrib.validation.jsonschema.formats import is_email, is_url
 
 from slugify import slugify
 
@@ -37,6 +38,21 @@ class DataTest:
         self.valid = valid
         self.expected_errors = expected_errors or {}
         self.schema = schema
+        if isinstance(self.schema, dict) and not self.schema.get("$schema"):
+            self.schema["$schema"] = "http://json-schema.org/draft-07/schema#"
+
+
+class Formats(TestCase):
+    def test_is_email(self):
+        assert is_email(None)
+        assert is_email("mail@mail.com")
+        assert not is_email("not_mail")
+
+    def test_is_url(self):
+        assert is_url(None)
+        assert is_url("https://website.com")
+        assert not is_url("htttps://website.com")
+        assert not is_url("website.com")
 
 
 class AdditionalItems(SchemaTest):
@@ -638,6 +654,7 @@ class Format(SchemaTest):
         ),
         DataTest(
             name="hostname. valid",
+            schema={"$schema": "http://json-schema.org/draft-04/schema"},
             data={
                 "hostnames": [
                     "localhost",
@@ -727,7 +744,7 @@ class Format(SchemaTest):
         DataTest(name="regexes. valid", data={"regexes": ["[0-9]+"]}, valid=True),
         DataTest(
             name="regexes. invalid",
-            data={"regexes": ["[0-9]++"]},
+            data={"regexes": ["[0-9]+++"]},
             valid=False,
             expected_errors={"regexes.0": [messages.INVALID_REGEX]},
         ),
@@ -890,13 +907,13 @@ class Maximum(SchemaTest):
 
 
 class MinItems(SchemaTest):
-    schema = {"minItems": 1}
+    schema = {"minItems": 2}
     data_tests = [
-        DataTest(name="longer is valid", data=[1, 2], valid=True),
-        DataTest(name="exact length is valid", data=[1], valid=True),
+        DataTest(name="longer is valid", data=[1, 2, 3], valid=True),
+        DataTest(name="exact length is valid", data=[1, 2], valid=True),
         DataTest(
             name="too short is invalid",
-            data=[],
+            data=[1],
             valid=False,
             expected_errors={"": [messages.FIELD_TOO_SHORT]},
         ),
@@ -904,18 +921,44 @@ class MinItems(SchemaTest):
     ]
 
 
-class MinProperties(SchemaTest):
-    schema = {"minProperties": 1}
+class EmptyItems(SchemaTest):
+    schema = {"minItems": 1}
     data_tests = [
-        DataTest(name="longer is valid", data={"foo": 1, "bar": 2}, valid=True),
-        DataTest(name="exact length is valid", data={"foo": 1}, valid=True),
+        DataTest(
+            name="empty is invalid",
+            data=list(),
+            valid=False,
+            expected_errors={"": [messages.SHOULD_BE_NON_EMPTY]},
+        )
+    ]
+
+
+class MinProperties(SchemaTest):
+    schema = {"minProperties": 2}
+    data_tests = [
+        DataTest(
+            name="longer is valid", data={"foo": 1, "bar": 2, "foobar": 3}, valid=True
+        ),
+        DataTest(name="exact length is valid", data={"foo": 1, "bar": 2}, valid=True),
         DataTest(
             name="too short is invalid",
-            data={},
+            data={"foo": 1},
             valid=False,
             expected_errors={"": [messages.NOT_ENOUGH_PROPERTIES]},
         ),
         DataTest(name="ignores non-objects", data="", valid=True),
+    ]
+
+
+class EmptyProperties(SchemaTest):
+    schema = {"minProperties": 1}
+    data_tests = [
+        DataTest(
+            name="empty is invalid",
+            data=dict(),
+            valid=False,
+            expected_errors={"": [messages.SHOULD_BE_NON_EMPTY]},
+        )
     ]
 
 

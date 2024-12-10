@@ -1,6 +1,94 @@
 Release notes
 =============
 
+1.23.0 (2024-10-31)
+-------------------
+
+- bugs: Fix ``traverse_nested`` when value is not compatible with ``ItemAdapter`` (`PR#450 <https://github.com/scrapinghub/spidermon/pull/450>`_)
+- bugs: Fix default templates non-subscriptable issue (`PR#451 <https://github.com/scrapinghub/spidermon/pull/451>`_)
+- chore: Update codecov action (`PR#453 <https://github.com/scrapinghub/spidermon/pull/453>`_)
+- docs: Fix broken link (`PR#452 <https://github.com/scrapinghub/spidermon/pull/452>`_)
+- feature: Allow to filter jobs in `ZyteJobsComparisonMonitor` by `close_reason` (`PR#440 <https://github.com/scrapinghub/spidermon/pull/440>`_)
+- feature: Apply fingerprint rules to group issues in sentry alerts (`PR#455 <https://github.com/scrapinghub/spidermon/pull/455>`_)
+
+1.22.0 (2024-05-08)
+-------------------
+
+- bugs: Fix ``_get_jobs`` to use the proper parameter for tag filtering in ``ZyteJobsComparisonMonitor``  (`PR#446 <https://github.com/scrapinghub/spidermon/pull/446>`_)
+- bugs: Fix ``_get_jobs`` method returning an incorrect number of jobs in ``ZyteJobsComparisonMonitor``  (`PR#444 <https://github.com/scrapinghub/spidermon/pull/444>`_)
+- docs: Add ``SPIDERMON_MONITOR_SKIPPING_RULES`` documentation and examples on settings page  (`PR#447 <https://github.com/scrapinghub/spidermon/pull/447>`_)
+- chore: Add Python 3.12 support (`PR#443 <https://github.com/scrapinghub/spidermon/pull/443>`_) (`PR#448 <https://github.com/scrapinghub/spidermon/pull/448>`_)
+
+
+1.21.0 (2024-04-18)
+-------------------
+
+- bug: Fix CI/CD pipelines not working due to changes on Scrapy (`PR#426 <https://github.com/scrapinghub/spidermon/pull/426>`_)
+- bug: Fix TypeError in ``PeriodicItemCountMonitor`` when item_scraped_count was not defined the first time it was checked (`PR#436 <https://github.com/scrapinghub/spidermon/pull/436>`_)
+- bug: Fix ``calculate_field_coverage`` incorrect handling of field names ending with _items (`PR#437 <https://github.com/scrapinghub/spidermon/pull/437>`_)
+- bug: Fix monitor failing when operating offset-naive and offset-aware datetimes (`PR#439 <https://github.com/scrapinghub/spidermon/pull/439>`_)
+- bug: Fix tests for minimum properties and items in JSON Schema validations (`PR#432 <https://github.com/scrapinghub/spidermon/pull/432>`_)
+- feature: Add the ``SPIDERMON_DICT_FIELDS_COVERAGE_LEVELS`` setting to limit nested dict stats computation (`PR#433 <https://github.com/scrapinghub/spidermon/pull/433>`_)
+- feature: Add ``SendSNSNotification`` to Spidermon Notifications (`PR#413 <https://github.com/scrapinghub/spidermon/pull/413>`_)
+- feature: Change the format of the content of _validation from defaultdict to dict (`PR#431 <https://github.com/scrapinghub/spidermon/pull/431>`_)
+
+1.20.0 (2023-09-01)
+-------------------
+
+- feature: Add support for nested fields in the ``SPIDERMON_VALIDATION_ERRORS_FIELD`` setting (`PR#416 <https://github.com/scrapinghub/spidermon/pull/417>`_)
+- bug: Fix ItemValidationPipeline using the ``__setitem__`` method without ItemAdaper (`PR#415 <https://github.com/scrapinghub/spidermon/pull/415>`_)
+- feature: Improve test coverage for the item validation pipeline (`PR#414 <https://github.com/scrapinghub/spidermon/pull/414>`_)
+- bug: Fix ``spidermon.utils.zyte.Client`` not following crawler settings (`PR#411 <https://github.com/scrapinghub/spidermon/pull/411>`_)
+- chore: Migrate ReadTheDocs to config file v2 (`PR#408 <https://github.com/scrapinghub/spidermon/pull/408>`_)
+- chore: Refactor package requirements (`PR#407 <https://github.com/scrapinghub/spidermon/pull/407>`_)
+
+Backward-incompatible changes
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- The ``SPIDERMON_VALIDATION_ERRORS_FIELD`` setting no longer supports a field
+  name that contains a dot (``.``). Dots are now be treated as field
+  separators, to support specifying a nested field.
+
+1.19.0 (2023-07-07)
+-------------------
+
+- bug: Fix ``JobTagsAction`` failing due to ``JobMetadata`` not longer supporting ``__setitem__`` method (`PR#404 <https://github.com/scrapinghub/spidermon/pull/404>`_)
+- feature: Add ``PeriodicItemCountMonitor`` to check for increase in item count. Also included ``PeriodicItemCountMonitorSuite`` suite (`PR#402 <https://github.com/scrapinghub/spidermon/pull/402>`_)
+- chore: Deprecate  support for data validation using ``schematics`` (`PR#399 <https://github.com/scrapinghub/spidermon/pull/399>`_)
+- chore: Drop support for Python 3.6 and Python 3.7. Added support for Python 3.11 (`PR#398 <https://github.com/scrapinghub/spidermon/pull/398>`_)
+- feature: Add ability to pass kwargs to Slack APIs (`PR#397 <https://github.com/scrapinghub/spidermon/pull/397>`_)
+
+1.18.0 (2023-03-13)
+-------------------
+
+- feature: Support setting the ``Return-Path`` for Amazon SES emails (`PR#381 <https://github.com/scrapinghub/spidermon/pull/381>`_)
+- bug: Fix ``BaseStatMonitor`` failing in Scrapy Cloud when settings were provided as strings (`PR#378 <https://github.com/scrapinghub/spidermon/pull/378>`_)
+- feature: Add setting ``SPIDERMON_FIELD_COVERAGE_SKIP_IF_NO_ITEM`` to allow skipping ``FieldCoverageMonitor`` if no items were scraped (`PR#372 <https://github.com/scrapinghub/spidermon/pull/372>`_)
+- feature: Add ``Fallback Actions``. ``Action`` now allows to define ``fallback`` field that may contain an additional ``Action`` to be executed if an exception is raised during the main action (`PR#365 <https://github.com/scrapinghub/spidermon/pull/365>`_)
+- feature: Use ``ItemAdapter`` when working with items to support the same types of item as Scrapy (`PR#358 <https://github.com/scrapinghub/spidermon/pull/358>`_)
+- chore: Refactor code from ``spider.contrib.scrapy`` into ``base``, ``monitors`` and ``suites`` subpackages (`PR#386 <https://github.com/scrapinghub/spidermon/pull/386>`_)
+- chore: Replace ``tox pep8`` functionality with ``pre-commit`` git hooks (`PR#387 <https://github.com/scrapinghub/spidermon/pull/387>`_)
+- chore: Update contributing guidelines to include reference to ``pre-commit`` tool (`PR#392 <https://github.com/scrapinghub/spidermon/pull/392>`_)
+
+1.17.1 (2023-01-05)
+-------------------
+
+- bug: Fix Slack dependency name issue (`PR#367 <https://github.com/scrapinghub/spidermon/pull/367>`_)
+- chore: Change the Ubuntu version on workflow settings (`PR#373 <https://github.com/scrapinghub/spidermon/pull/373>`_)
+- docs: Adding PeriodicExecutionTimeMonitor to the batteries docs (`PR#368 <https://github.com/scrapinghub/spidermon/pull/368>`_)
+- feature: Adding the use of ItemAdapter to prevent assumptions of item nature (`PR#358 <https://github.com/scrapinghub/spidermon/pull/358>`_)
+- misc: Fix compatibility issues with jsonschema>=4 (`PR#364 <https://github.com/scrapinghub/spidermon/pull/364>`_)
+
+1.17.0 (2022-09-12)
+-------------------
+
+- feature: Updated `DownloaderExceptionMonitor` and `ItemValidationMonitor` to inherit from `BaseStatMonitor` (`PR#334 <https://github.com/scrapinghub/spidermon/pull/334>`_, `PR#335 <https://github.com/scrapinghub/spidermon/pull/335>`_)
+- feature: Updated Slack action to use `slack-sdk <https://pypi.org/project/slack-sdk/>`_ as library in replacement of deprecated `slackclient <https://pypi.org/project/slackclient/>`_ (`PR#313 <https://github.com/scrapinghub/spidermon/issues/313>`_)
+- feature: Added new action to allow to send notification to Discord channels (`PR#348 <https://github.com/scrapinghub/spidermon/pull/348>`_)
+- feature: Added Python 3.10 support (`PR#349 <https://github.com/scrapinghub/spidermon/pull/349>`_)
+- feature: Added new action to allow to send email notifications using SMTP server (`PR#345 <https://github.com/scrapinghub/spidermon/pull/345>`_)
+- misc: small bug fixes and documentation improvements that can be checked in the `milestone summary <https://github.com/scrapinghub/spidermon/milestone/13?closed=1>`_.
+
 1.16.2 (2021-12-23)
 -------------------
 - feature: Create base class to aid the creation of custom monitors that only validates against a job stat value (`PR#325 <https://github.com/scrapinghub/spidermon/pull/325>`_)

@@ -2,12 +2,14 @@ from scrapy import signals
 from scrapy.exceptions import NotConfigured
 from scrapy.utils.misc import load_object
 from twisted.internet.task import LoopingCall
+from itemadapter import ItemAdapter
 
 from spidermon import MonitorSuite
 from spidermon.contrib.scrapy.runners import SpiderMonitorRunner
 from spidermon.python import factory
 from spidermon.python.monitors import ExpressionsMonitor
 from spidermon.utils.field_coverage import calculate_field_coverage
+from spidermon.utils.zyte import Client
 
 
 class Spidermon:
@@ -53,6 +55,7 @@ class Spidermon:
 
         self.periodic_suites = periodic_suites or {}
         self.periodic_tasks = {}
+        self.client = Client(self.crawler.settings)
 
     def load_suite(self, suite_to_load):
         try:
@@ -107,6 +110,7 @@ class Spidermon:
         crawler.signals.connect(ext.engine_stopped, signal=signals.engine_stopped)
 
         has_field_coverage = crawler.settings.getbool("SPIDERMON_ADD_FIELD_COVERAGE")
+
         if has_field_coverage:
             crawler.signals.connect(ext.item_scraped, signal=signals.item_scraped)
 
@@ -131,13 +135,21 @@ class Spidermon:
         spider = self.crawler.spider
         self._run_suites(spider, self.engine_stopped_suites)
 
-    def _count_item(self, item, skip_none_values, item_count_stat=None):
+    def _count_item(
+        self,
+        item,
+        skip_none_values,
+        item_count_stat=None,
+        max_list_nesting_level=0,
+        max_dict_nesting_level=-1,
+        nesting_level=0,
+    ):
         if item_count_stat is None:
             item_type = type(item).__name__
             item_count_stat = f"spidermon_item_scraped_count/{item_type}"
             self.crawler.stats.inc_value(item_count_stat)
 
-        for field_name, value in item.items():
+        for field_name, value in ItemAdapter(item).items():
             if skip_none_values and value is None:
                 continue
 
@@ -145,8 +157,45 @@ class Spidermon:
             self.crawler.stats.inc_value(field_item_count_stat)
 
             if isinstance(value, dict):
-                self._count_item(value, skip_none_values, field_item_count_stat)
+                # if there's no max (set to -1), we just proceed indefinitely (all levels)
+                # this is for backwards compatibility
+                if max_dict_nesting_level == -1:
+                    self._count_item(value, skip_none_values, field_item_count_stat)
+                    continue
+                elif (
+                    max_dict_nesting_level > -1
+                    and nesting_level < max_dict_nesting_level
+                ):
+                    self._count_item(
+                        value,
+                        skip_none_values,
+                        field_item_count_stat,
+                        nesting_level=nesting_level + 1,
+                        max_list_nesting_level=max_list_nesting_level,
+                        max_dict_nesting_level=max_dict_nesting_level,
+                    )
+                    continue
+
                 continue
+
+            if (
+                isinstance(value, list)
+                and max_list_nesting_level > 0
+                and nesting_level < max_list_nesting_level
+            ):
+                items_count_stat = f"{field_item_count_stat}/_items"
+                for list_item in value:
+                    self.crawler.stats.inc_value(items_count_stat)
+                    if isinstance(list_item, dict):
+                        self._count_item(
+                            list_item,
+                            skip_none_values,
+                            items_count_stat,
+                            max_list_nesting_level=max_list_nesting_level,
+                            max_dict_nesting_level=max_dict_nesting_level,
+                            nesting_level=nesting_level + 1,
+                        )
+                        continue
 
     def _add_field_coverage_to_stats(self):
         stats = self.crawler.stats.get_stats()
@@ -157,8 +206,19 @@ class Spidermon:
         skip_none_values = spider.crawler.settings.getbool(
             "SPIDERMON_FIELD_COVERAGE_SKIP_NONE", False
         )
+        list_field_coverage_levels = spider.crawler.settings.getint(
+            "SPIDERMON_LIST_FIELDS_COVERAGE_LEVELS", 0
+        )
+        dict_field_coverage_levels = spider.crawler.settings.getint(
+            "SPIDERMON_DICT_FIELDS_COVERAGE_LEVELS", -1
+        )
         self.crawler.stats.inc_value("spidermon_item_scraped_count")
-        self._count_item(item, skip_none_values)
+        self._count_item(
+            item,
+            skip_none_values,
+            max_list_nesting_level=list_field_coverage_levels,
+            max_dict_nesting_level=dict_field_coverage_levels,
+        )
 
     def _run_periodic_suites(self, spider, suites):
         suites = [self.load_suite(s) for s in suites]
@@ -171,8 +231,6 @@ class Spidermon:
             runner.run(suite, **data)
 
     def _generate_data_for_spider(self, spider):
-        from spidermon.utils.zyte import client
-
         return {
             "stats": self.crawler.stats.get_stats(spider),
             "stats_history": spider.stats_history
@@ -180,5 +238,5 @@ class Spidermon:
             else [],
             "crawler": self.crawler,
             "spider": spider,
-            "job": client.job if client.available else None,
+            "job": self.client.job if self.client.available else None,
         }

@@ -35,10 +35,14 @@ class SendSentryMessage(Action):
         self.environment = environment or self.environment
 
         if not self.fake and not self.sentry_dsn:
-            raise NotConfigured("Missing SPIDERMON_SENTRY_DSN setting")
+            raise NotConfigured(
+                "You must provide a value for SPIDERMON_SENTRY_DSN setting."
+            )
 
         if not self.project_name:
-            raise NotConfigured("Missing SPIDERMON_SENTRY_PROJECT_NAME setting")
+            raise NotConfigured(
+                "You must provide a value for SPIDERMON_SENTRY_PROJECT_NAME setting."
+            )
 
     @classmethod
     def from_crawler_kwargs(cls, crawler):
@@ -111,7 +115,6 @@ class SendSentryMessage(Action):
         return tags
 
     def send_message(self, message):
-
         sentry_client = Client(dsn=self.sentry_dsn, environment=self.environment)
 
         with configure_scope() as scope:
@@ -133,12 +136,13 @@ class SendSentryMessage(Action):
             scope.set_extra("failed_monitors", message.get("failed_monitors", []))
 
             sentry_client.capture_event(
-                {
+                event={
                     "message": "{title} \n {description}".format(
                         title=message.get("title"),
                         description=message.get("failure_reasons", ""),
                     ),
                     "level": self.sentry_log_level,
+                    "fingerprint": [message.get("title")],
                 },
                 scope=scope,
             )

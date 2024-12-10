@@ -1,53 +1,44 @@
 from setuptools import find_packages, setup
 
-test_requirements = [
-    "pytest>=2.7.0",
-    "pytest-cov",
-    "pytest-mock",
-    "jinja2",
-    "lxml",
-    "premailer",
-    "scrapinghub",
-    "scrapinghub-entrypoint-scrapy",
-    "scrapy",
-    "slack-sdk",
-    "twisted>=19.7.0",
-]
-
 setup(
     name="spidermon",
-    version="1.16.2",
+    version="1.23.0",
     url="https://github.com/scrapinghub/spidermon",
+    project_urls={
+        "Documentation": "https://spidermon.readthedocs.io/",
+        "Source": "https://github.com/scrapinghub/spidermon",
+        "Tracker": "https://github.com/scrapinghub/spidermon/issues",
+        "Release notes": "https://spidermon.readthedocs.io/en/latest/changelog.html",
+    },
     author="Zyte",
     author_email="opensource@zyte.com",
     description=("Spidermon is a framework to build monitors for Scrapy spiders."),
-    long_description=("Spidermon is a framework to build monitors for Scrapy spiders."),
+    long_description=open("README.rst", encoding="utf-8").read(),
+    long_description_content_type="text/x-rst",
     license="BSD",
     packages=find_packages(),
     package_data={"spidermon": ["VERSION"]},
     zip_safe=False,
     include_package_data=True,
-    install_requires=["jsonschema[format]==3.2.0", "python-slugify"],
-    tests_require=test_requirements,
+    install_requires=[
+        "jsonschema[format]>=4.21.0",
+        "python-slugify",
+    ],
     extras_require={
         # Specific monitors and tools to support notifications and reports
         "monitoring": [
-            "scrapy",
             "Jinja2",
-            "scrapinghub",
-            "slackclient",
             "boto",
             "boto3",
+            "itemadapter",
             "premailer",
-            "sentry-sdk",
-        ],
-        # Data validation
-        "validation": ["schematics"],
-        # Tools to run the tests
-        "tests": test_requirements,
-        "pep8": ["black"],
-        # Tools to build and publish the documentation
-        "docs": ["sphinx", "sphinx-rtd-theme", "s3cmd"],
+            "requests",
+            "scrapinghub",
+            "scrapinghub-entrypoint-scrapy",
+            "scrapy",
+            "sentry_sdk",
+            "slack_sdk",
+        ]
     },
     classifiers=[
         "Development Status :: 5 - Production/Stable",
@@ -57,12 +48,13 @@ setup(
         "Operating System :: OS Independent",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
         "Topic :: Internet :: WWW/HTTP",
         "Topic :: System :: Monitoring",
     ],
-    python_requires=">=3.6",
+    python_requires=">=3.8",
 )

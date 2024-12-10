@@ -1,16 +1,17 @@
-import json
-from io import BytesIO
 from collections import defaultdict
+from typing import Dict
+
+from itemadapter import ItemAdapter
 
 from scrapy.exceptions import DropItem, NotConfigured
-from scrapy.utils.misc import load_object
-from scrapy.exporters import JsonLinesItemExporter
-from scrapy import Field, Item
-from scrapy.utils.python import to_unicode
+from scrapy import Item
 
-from spidermon.contrib.validation import SchematicsValidator, JSONSchemaValidator
+from spidermon.contrib.validation import JSONSchemaValidator
 from spidermon.contrib.validation.jsonschema.tools import get_schema_from
-from schematics.models import Model
+from spidermon.contrib.utils.attributes import (
+    get_nested_attribute,
+    set_nested_attribute,
+)
 
 from .stats import ValidationStatsManager
 
@@ -62,7 +63,6 @@ class ItemValidationPipeline:
 
         for loader, name in [
             (cls._load_jsonschema_validator, "SPIDERMON_VALIDATION_SCHEMAS"),
-            (cls._load_schematics_validator, "SPIDERMON_VALIDATION_MODELS"),
         ]:
             res = crawler.settings.get(name)
             if not res:
@@ -103,30 +103,22 @@ class ItemValidationPipeline:
             )
         return JSONSchemaValidator(schema)
 
-    @classmethod
-    def _load_schematics_validator(cls, model_path):
-        model_class = load_object(model_path)
-        if not issubclass(model_class, Model):
-            raise NotConfigured(
-                "Invalid model, models must subclass schematics.models.Model"
-            )
-        return SchematicsValidator(model_class)
-
     def process_item(self, item, _):
         validators = self.find_validators(item)
         if not validators:
             # No validators match this specific item type
             return item
 
-        data = self._convert_item_to_dict(item)
+        item_adapter = ItemAdapter(item)
+        item_dict = item_adapter.asdict()
         self.stats.add_item()
-        self.stats.add_fields(len(list(data.keys())))
+        self.stats.add_fields(len(item_dict.keys()))
         for validator in validators:
-            ok, errors = validator.validate(data)
+            ok, errors = validator.validate(item_dict)
             if not ok:
                 self._add_error_stats(errors)
                 if self.add_errors_to_items:
-                    self._add_errors_to_item(item, errors)
+                    self._add_errors_to_item(item_adapter, errors)
                 if self.drop_items_with_errors:
                     self._drop_item(item, errors)
         return item
@@ -135,26 +127,17 @@ class ItemValidationPipeline:
         find = lambda x: self.validators.get(x.__name__, [])
         return find(item.__class__) or find(Item)
 
-    def _convert_item_to_dict(self, item):
-        serialized_json = BytesIO()
-        exporter = JsonLinesItemExporter(serialized_json)
-        exporter.export_item(item)
-        data = json.loads(to_unicode(serialized_json.getvalue(), exporter.encoding))
-        serialized_json.close()
-        return data
+    def _add_errors_to_item(self, item: ItemAdapter, errors: Dict[str, str]):
+        errors_field_instance = get_nested_attribute(item, self.errors_field)
 
-    def _add_errors_to_item(self, item, errors):
-        try:
-            if self.errors_field not in item.__class__.fields:
-                item.__class__.fields[self.errors_field] = Field()
-            if self.errors_field not in item._values:
-                item[self.errors_field] = defaultdict(list)
-        except AttributeError:
-            # The item is just a dict object instead of a Scrapy.Item object
-            if self.errors_field not in item:
-                item[self.errors_field] = defaultdict(list)
+        if errors_field_instance is None:
+            errors_field_instance = defaultdict(list)
+
         for field_name, messages in errors.items():
-            item[self.errors_field][field_name] += messages
+            errors_field_instance[field_name] += messages
+
+        # change defaultdict to dict for errors_field_instance
+        set_nested_attribute(item, self.errors_field, dict(errors_field_instance))
 
     def _drop_item(self, item, errors):
         """
